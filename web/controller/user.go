@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/png"
 	"net/http"
+	"zufang/web/model"
 	"zufang/web/utils"
 
 	"github.com/afocus/captcha"
@@ -35,7 +36,6 @@ func GetSession(ctx *gin.Context) {
 	resp["errno"] = utils.RECODE_SESSIONERR
 	resp["errmsg"] = utils.RecodeText(utils.RECODE_SESSIONERR)
 	ctx.JSON(http.StatusOK, resp)
-
 }
 
 //获取图片信息
@@ -59,4 +59,20 @@ func GetImageCd(ctx *gin.Context) {
 	png.Encode(ctx.Writer, img)
 
 	// fmt.Println(str)
+}
+
+func GetSmscd(ctx *gin.Context) {
+	phone := ctx.Param("phone")
+	imgCode := ctx.Query("text")
+	uuid := ctx.Query("id")
+
+	fmt.Println("-----out----:", phone, imgCode, uuid)
+
+	//校验图片验证码 是否正确
+	result := model.CheckImgCode(uuid, imgCode)
+	if result {
+		//发送短信
+	} else {
+
+	}
 }
