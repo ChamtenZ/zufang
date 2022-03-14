@@ -108,3 +108,19 @@ func GetSmscd(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, resp)
 }
+
+//获取注册信息
+func PostRet(ctx *gin.Context) {
+	// mobile := ctx.PostForm("mobile")
+	// pwd := ctx.PostForm("password")
+	// smsCode := ctx.PostForm("sms_code")
+	// fmt.Println("mobile:", mobile, "pwd:", pwd, "smscode:", smsCode)
+
+	var regData struct {
+		Mobile   string `json:"mobile"`
+		PassWord string `json:"password"`
+		SmsCode  string `json:"sms_code"`
+	}
+	ctx.Bind(&regData)
+	fmt.Println("获取到的数据为：", regData)
+}
