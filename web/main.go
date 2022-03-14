@@ -1,12 +1,15 @@
 package main
 
 import (
-	"zufang/web/controller"
-
 	"github.com/gin-gonic/gin"
+	"zufang/web/controller"
 )
 
 func main() {
+
+	// //初始化连接池
+	// model.InitRedis()
+
 	//初始化路由
 	router := gin.Default()
 	//路由匹配
@@ -14,9 +17,8 @@ func main() {
 	// 	context.Writer.WriteString("项目开始了。。。。")
 	// })
 	router.Static("/home", "view")
-	router.GET("/api/v1.0/session", controller.GetSession)
-	router.GET("api/v1.0/imagecode/:uuid", controller.GetImageCd)
-
+	// router.GET("/api/v1.0/session", controller.GetSession)
+	// router.GET("api/v1.0/imagecode/:uuid", controller.GetImageCd)
 
 	//添加路由分组
 	r1 := router.Group("/api/v1.0")
@@ -26,4 +28,8 @@ func main() {
 		r1.GET("/smscode/:phone", controller.GetSmscd)
 	}
 	router.Run(":8080")
+}
+
+func InitRedis() {
+	panic("unimplemented")
 }

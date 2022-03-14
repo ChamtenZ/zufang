@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
+	// "math/rand"
 	"net/http"
-	"zufang/web/model"
+	// "time"
+	// "zufang/web/model"
 	"zufang/web/utils"
 
 	"github.com/afocus/captcha"
@@ -15,7 +17,8 @@ import (
 	"github.com/asim/go-micro/plugins/registry/consul/v3"
 	"github.com/asim/go-micro/v3"
 
-	capt "zufang/web/proto"
+	capt "zufang/web/proto/getCaptcha"
+	userMicro "zufang/web/proto/user"
 )
 
 func GetSession(ctx *gin.Context) {
@@ -68,11 +71,40 @@ func GetSmscd(ctx *gin.Context) {
 
 	fmt.Println("-----out----:", phone, imgCode, uuid)
 
-	//校验图片验证码 是否正确
-	result := model.CheckImgCode(uuid, imgCode)
-	if result {
-		//发送短信
-	} else {
+	/////////////---------------------------------------
+	// resp := make(map[string]string)
+	// //校验图片验证码 是否正确
+	// result := model.CheckImgCode(uuid, imgCode)
+	// if result {
+	// 	//发送短信
+	// 	rand.Seed(time.Now().UnixNano())
+	// 	smsCode := fmt.Sprintf("%06d", rand.Int31n(1000000))
+	// 	err := model.SaveSmsCode(phone, smsCode)
+	// 	if err != nil {
+	// 		fmt.Println("存储验证码到redis失败, err :", err)
 
+	// 		resp["errno"] = utils.RECODE_DBERR
+	// 		resp["errmsg"] = utils.RecodeText(utils.RECODE_DBERR)
+	// 	}
+	// 	//使用阿里短信api发送短信
+	// 	fmt.Println("验证码为：", smsCode)
+
+	// 	resp["errno"] = utils.RECODE_OK
+	// 	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	// } else {
+	// 	resp["errno"] = utils.RECODE_SMSERR
+	// 	resp["errmsg"] = utils.RecodeText(utils.RECODE_SMSERR)
+	// }
+
+	consulReg := consul.NewRegistry()
+	microService := micro.NewService(
+		micro.Registry(consulReg),
+	)
+	microClient := userMicro.NewUserService("user", microService.Client())
+	resp, err := microClient.SendSms(context.TODO(), &userMicro.Request{Phone: phone, ImgCode: imgCode, Uuid: uuid})
+	if err != nil {
+		fmt.Println("未找到远程服务。。。")
 	}
+
+	ctx.JSON(http.StatusOK, resp)
 }
