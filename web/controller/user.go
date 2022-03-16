@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
+
 	// "math/rand"
 	"net/http"
 	// "time"
-	// "zufang/web/model"
+	"zufang/web/model"
 	"zufang/web/utils"
 
 	"github.com/afocus/captcha"
@@ -17,6 +18,7 @@ import (
 	"github.com/asim/go-micro/plugins/registry/consul/v3"
 	"github.com/asim/go-micro/v3"
 
+	"github.com/gomodule/redigo/redis"
 	capt "zufang/web/proto/getCaptcha"
 	userMicro "zufang/web/proto/user"
 )
@@ -123,4 +125,45 @@ func PostRet(ctx *gin.Context) {
 	}
 	ctx.Bind(&regData)
 	fmt.Println("获取到的数据为：", regData)
+
+	//注册用户
+	microService := InitMicro()
+	microClient := userMicro.NewUserService("user", microService.Client())
+	resp, err := microClient.Register(context.TODO(), &userMicro.RegReq{
+		Mobile: regData.Mobile, Password: regData.PassWord, SmsCode: regData.SmsCode})
+	if err != nil {
+		fmt.Println("未找到远程服务。。。")
+	}
+
+	ctx.JSON(http.StatusOK, resp)
+}
+
+func InitMicro() micro.Service {
+	consulReg := consul.NewRegistry()
+	return micro.NewService(
+		micro.Registry(consulReg),
+	)
+}
+
+func GetArea(ctx *gin.Context) {
+	conn := model.RedisPool.Get()
+	var areas []model.Area
+
+	areaData, _ := redis.Bytes(conn.Do("get", "areaData"))
+	if len(areaData) == 0 {
+		fmt.Println("从mysql中获取数据。。。")
+		model.GlobalConn.Find(&areas)
+		areaBuf, _ := json.Marshal(areas)
+		conn.Do("set", "areaData", areaBuf)
+	} else {
+		fmt.Println("从redis中获取数据。。。")
+		json.Unmarshal(areaData, &areas)
+	}
+
+	resp := make(map[string]interface{})
+	resp["errno"] = "0"
+	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	resp["data"] = areas
+
+	ctx.JSON(http.StatusOK, resp)
 }

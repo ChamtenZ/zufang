@@ -16,6 +16,7 @@ import (
 func main() {
 	//初始化连接池
 	model.InitRedis()
+	model.InitDb()
 
 	consulReg := consul.NewRegistry()
 

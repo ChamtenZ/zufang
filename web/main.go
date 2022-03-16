@@ -1,14 +1,18 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"zufang/web/controller"
+	"zufang/web/model"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
 	// //初始化连接池
-	// model.InitRedis()
+	model.InitRedis()
+	//初始化Mysql链接池
+	model.InitDb()
 
 	//初始化路由
 	router := gin.Default()
@@ -27,10 +31,11 @@ func main() {
 		r1.GET("/imagecode/:uuid", controller.GetImageCd)
 		r1.GET("/smscode/:phone", controller.GetSmscd)
 		r1.POST("/users", controller.PostRet)
+		r1.GET("/areas", controller.GetArea)
 	}
 	router.Run(":8080")
 }
 
-func InitRedis() {
-	panic("unimplemented")
-}
+// func InitRedis() {
+// 	panic("unimplemented")
+// }
