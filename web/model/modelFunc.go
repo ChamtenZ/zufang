@@ -1,7 +1,10 @@
 package model
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -44,6 +47,26 @@ func SaveSmsCode(phone, code string) error {
 	defer conn.Close()
 
 	//查询redis
-	_, err := redis.String(conn.Do("setex", phone + "_code", 60 * 3, code ))
+	_, err := redis.String(conn.Do("setex", phone+"_code", 60*3, code))
 	return err
+}
+
+func Login(mobile, pwd string) (string, error) {
+	var user User
+
+	m5 := md5.New()
+	m5.Write([]byte(pwd))
+	pwd_hash := hex.EncodeToString(m5.Sum(nil))
+	err := GlobalConn.Select("name").Where("mobile=? and password_hash=?", mobile, pwd_hash).Find(&user).Error
+	return user.Name, err
+}
+
+func GetUserInfo(userName string) (User, error) {
+	var user User
+	err := GlobalConn.Where("name=?", userName).First(&user).Error
+	return user, err
+}
+
+func UpdateUserName(newName, oldName string) error {
+	return GlobalConn.Model(new(User)).Where("name=?", oldName).Update("name", newName).Error
 }

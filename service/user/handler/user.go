@@ -41,12 +41,24 @@ func (e *User) SendSms(ctx context.Context, req *user.Request, rsp *user.Respons
 	return nil
 }
 
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
 func (e *User) Register(ctx context.Context, req *user.RegReq, rsp *user.Response) error {
 	//校验短信验证码 是否正确
 	result := model.CheckSmsCode(req.Mobile, req.SmsCode)
 	if result {
 		//如果检验正确，注册用户，将数据写入到mysql数据库
-		err := model.RegisterUser(req.Mobile, req.Password)
+
+		randomUserName := RandStringBytes(15)
+		err := model.RegisterUser(randomUserName, req.Mobile, req.Password)
 		if err != nil {
 			rsp.Errno = utils.RECODE_DBERR
 			rsp.Errmsg = utils.RecodeText(utils.RECODE_DBERR)

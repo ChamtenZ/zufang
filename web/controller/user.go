@@ -13,33 +13,32 @@ import (
 	"zufang/web/utils"
 
 	"github.com/afocus/captcha"
+	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 
 	"github.com/asim/go-micro/plugins/registry/consul/v3"
 	"github.com/asim/go-micro/v3"
 
-	"github.com/gomodule/redigo/redis"
 	capt "zufang/web/proto/getCaptcha"
 	userMicro "zufang/web/proto/user"
+
+	"github.com/gomodule/redigo/redis"
 )
 
 func GetSession(ctx *gin.Context) {
-	// // You also can use a struct
-	// var msg struct {
-	// 	Errno  string `json:"errno"`
-	// 	Errmsg string `json:"errmsg"`
-	// 	Number int    `json:"errno"`
-	// }
-	// msg.Errno = utils.RECODE_SESSIONERR
-	// msg.Errmsg = utils.RecodeText(utils.RECODE_SESSIONERR)
-	// msg.Number = 123
-	// // Note that msg.Name becomes "user" in the JSON
-	// // Will output  :   {"user": "Lena", "Message": "hey", "Number": 123}
-	// c.JSON(http.StatusOK, msg)
+	resp := map[string]interface{}{}
 
-	resp := map[string]string{}
-	resp["errno"] = utils.RECODE_SESSIONERR
-	resp["errmsg"] = utils.RecodeText(utils.RECODE_SESSIONERR)
+	session := sessions.Default(ctx)
+	userName := session.Get("userName")
+	if userName == nil {
+		resp["errno"] = utils.RECODE_SESSIONERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_SESSIONERR)
+	} else {
+		resp["errno"] = utils.RECODE_OK
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+		resp["data"] = map[string]string{"name": userName.(string)}
+	}
+
 	ctx.JSON(http.StatusOK, resp)
 }
 
@@ -166,4 +165,124 @@ func GetArea(ctx *gin.Context) {
 	resp["data"] = areas
 
 	ctx.JSON(http.StatusOK, resp)
+}
+
+func PostLogin(ctx *gin.Context) {
+	var loginData struct {
+		Mobile   string `json:"mobile"`
+		PassWord string `json:"password"`
+	}
+	ctx.Bind(&loginData)
+	fmt.Println("获取到的数据为：", loginData)
+
+	resp := make(map[string]interface{})
+	//获取数据库数据 查询是否和数据的数据匹配
+	userName, err := model.Login(loginData.Mobile, loginData.PassWord)
+	if err != nil {
+		resp["errno"] = utils.RECODE_LOGINERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_LOGINERR)
+	} else {
+
+		resp["errno"] = utils.RECODE_OK
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+
+		//将登陆状态保存到Session中
+		session := sessions.Default(ctx)
+		session.Set("userName", userName)
+		session.Save()
+	}
+
+	ctx.JSON(http.StatusOK, resp)
+}
+
+func DeleteSession(ctx *gin.Context) {
+	resp := map[string]interface{}{}
+
+	session := sessions.Default(ctx)
+	session.Delete("userName")
+	err := session.Save()
+	if err != nil {
+		resp["errno"] = utils.RECODE_IOERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_IOERR)
+	} else {
+		resp["errno"] = utils.RECODE_OK
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	}
+
+	ctx.JSON(http.StatusOK, resp)
+}
+
+func GetUserInfo(ctx *gin.Context) {
+	resp := make(map[string]interface{})
+	defer ctx.JSON(http.StatusOK, resp)
+
+	session := sessions.Default(ctx)
+	userName := session.Get("userName")
+
+	if userName == nil { //用户没登陆，但进入该页面，恶意进入
+		resp["errno"] = utils.RECODE_SESSIONERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_SESSIONERR)
+		return
+	}
+
+	user, err := model.GetUserInfo(userName.(string))
+	if err != nil {
+		resp["errno"] = utils.RECODE_DBERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_DBERR)
+		return
+	}
+	resp["errno"] = utils.RECODE_OK
+	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	resp["data"] = map[string]interface{}{
+		"user_id":    user.ID,
+		"name":       user.Name,
+		"mobile":     user.Mobile,
+		"real_name":  user.Real_name,
+		"id_card":    user.Id_card,
+		"avatar_url": user.Avatar_url,
+	}
+
+}
+
+func PutUserInfo(ctx *gin.Context) {
+	resp := map[string]interface{}{}
+	defer ctx.JSON(http.StatusOK, resp)
+
+	//获取当前用户名
+	session := sessions.Default(ctx)
+	userName := session.Get("userName")
+
+	//获取新用户名
+	var nameData struct {
+		Name string `json:"name"`
+	}
+	ctx.Bind(&nameData)
+
+	//更新用户名
+	err := model.UpdateUserName(nameData.Name, userName.(string))
+	if err != nil {
+		resp["errno"] = utils.RECODE_DBERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_DBERR)
+		return
+	}
+
+	session.Set("userName", nameData.Name)
+	err = session.Save()
+	if err != nil {
+		resp["errno"] = utils.RECODE_SESSIONERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_SESSIONERR)
+		return
+	}
+	resp["errno"] = utils.RECODE_OK
+	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	resp["data"] = nameData
+}
+
+func PostAvatar(ctx *gin.Context) {
+	//上传头像
+	// 单文件
+	file, _ := ctx.FormFile("avatar")
+	// 上传文件到指定的路径
+	err := ctx.SaveUploadedFile(file, "media/"+file.Filename)
+	fmt.Println(err)
 }

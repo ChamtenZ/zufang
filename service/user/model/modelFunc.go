@@ -68,9 +68,10 @@ func CheckSmsCode(phone, smsCode string) bool {
 	return code == smsCode
 }
 
-func RegisterUser(mobile, pwd string) error {
+func RegisterUser(name, mobile, pwd string) error {
 	var user User
-	user.Name = mobile
+	user.Name = name
+	user.Mobile = mobile
 
 	m5 := md5.New()
 	m5.Write([]byte(pwd))
