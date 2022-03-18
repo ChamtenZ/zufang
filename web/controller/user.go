@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
+	"path"
 
 	// "math/rand"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	userMicro "zufang/web/proto/user"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/tedcy/fdfs_client"
 )
 
 func GetSession(ctx *gin.Context) {
@@ -239,9 +241,8 @@ func GetUserInfo(ctx *gin.Context) {
 		"mobile":     user.Mobile,
 		"real_name":  user.Real_name,
 		"id_card":    user.Id_card,
-		"avatar_url": user.Avatar_url,
+		"avatar_url": "http://192.168.154.131:8888/" + user.Avatar_url,
 	}
-
 }
 
 func PutUserInfo(ctx *gin.Context) {
@@ -278,11 +279,84 @@ func PutUserInfo(ctx *gin.Context) {
 	resp["data"] = nameData
 }
 
+func saveImagInFastDfs(buffer []byte, fileExtName string) (string, error) {
+	client, err := fdfs_client.NewClientWithConfig("/etc/fdfs/client.conf")
+	defer client.Destory()
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	return client.UploadByBuffer(buffer, fileExtName)
+}
+
 func PostAvatar(ctx *gin.Context) {
+	resp := make(map[string]interface{})
+	defer ctx.JSON(http.StatusOK, resp)
 	//上传头像
 	// 单文件
 	file, _ := ctx.FormFile("avatar")
 	// 上传文件到指定的路径
-	err := ctx.SaveUploadedFile(file, "media/"+file.Filename)
-	fmt.Println(err)
+	// err := ctx.SaveUploadedFile(file, "media/"+file.Filename)
+	// fmt.Println(err)
+	f, err := file.Open()
+	if err != nil {
+		resp["errno"] = utils.RECODE_IOERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_IOERR)
+		return
+	}
+	buf := make([]byte, file.Size)
+	if _, err := f.Read(buf); err != nil {
+		resp["errno"] = utils.RECODE_IOERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_IOERR)
+		return
+	}
+	fileExt := path.Ext(file.Filename)
+
+	fileId, err := saveImagInFastDfs(buf, fileExt[1:])
+
+	userName := sessions.Default(ctx).Get("userName")
+
+	if err := model.UpdateAvatar(userName.(string), fileId); err != nil {
+		resp["errno"] = utils.RECODE_DBERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_DBERR)
+		return
+	}
+	resp["errno"] = utils.RECODE_OK
+	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
+	resp["data"] = map[string]interface{}{"avatar_url": "http://192.168.154.131:8888/" + fileId}
+}
+
+// 上传实名认证
+type AuthStu struct {
+	IdCard   string `json:"id_card"`
+	RealName string `json:"real_name"`
+}
+
+func PutUserAuth(ctx *gin.Context) {
+	resp := map[string]interface{}{}
+	defer ctx.JSON(http.StatusOK, resp)
+
+	//获取数据
+	var auth AuthStu
+	err := ctx.Bind(&auth)
+	//校验数据
+	if err != nil {
+		fmt.Println("获取数据错误", err)
+		return
+	}
+	//获取当前用户名
+	session := sessions.Default(ctx)
+	userName := session.Get("userName")
+
+	//更新真实信息
+	err = model.UpdateUserAuth(userName.(string), auth.IdCard, auth.RealName)
+	if err != nil {
+		resp["errno"] = utils.RECODE_DBERR
+		resp["errmsg"] = utils.RecodeText(utils.RECODE_DBERR)
+		return
+	}
+
+	resp["errno"] = utils.RECODE_OK
+	resp["errmsg"] = utils.RecodeText(utils.RECODE_OK)
 }

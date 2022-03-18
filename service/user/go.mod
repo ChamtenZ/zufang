@@ -12,6 +12,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/jinzhu/gorm v1.9.16
 	github.com/miekg/dns v1.1.47 // indirect
+	github.com/tedcy/fdfs_client v0.0.0-20200106031142-21a04994525a // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
 	golang.org/x/tools v0.1.9 // indirect

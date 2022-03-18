@@ -50,12 +50,15 @@ func main() {
 		r1.GET("/smscode/:phone", controller.GetSmscd)
 		r1.POST("/users", controller.PostRet)
 		r1.GET("/areas", controller.GetArea)
-		r1.Use(LoginFilter()) //以后的路由都不需要校验session
 		r1.POST("/sessions", controller.PostLogin)
+		r1.Use(LoginFilter()) //以后的路由都不需要校验session
 		r1.DELETE("/session", controller.DeleteSession)
 		r1.GET("/user", controller.GetUserInfo)
 		r1.PUT("/user/name", controller.PutUserInfo)
 		r1.POST("/user/avatar", controller.PostAvatar)
+		r1.POST("/user/auth", controller.PutUserAuth)
+		r1.GET("/user/auth",controller.GetUserInfo)
+
 	}
 	router.Run(":8080")
 }
